@@ -1,12 +1,17 @@
 import React from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import ThoughtList from '../components/ThoughtList';
-import { useQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { QUERY_USER, QUERY_ME } from '../utils/queries';
 import FriendList from '../components/FriendList';
 import Auth from '../utils/auth';
+import { ADD_FRIEND } from '../utils/mutations';
+import ThoughtForm from '../components/ThoughtForm';
+
 
 const Profile = () => {
+  const [addFriend] = useMutation(ADD_FRIEND);
+
   const { username: userParam } = useParams();
 
   const { loading, data } = useQuery(userParam ? QUERY_USER : QUERY_ME, {
@@ -17,11 +22,11 @@ const Profile = () => {
 
   if (Auth.loggedIn() && Auth.getProfile().data.username === userParam) {
     return <Navigate to="/profile" />;
-  }
+  };
 
   if (loading) {
     return <div>Loading...</div>
-  }
+  };
 
   if (!user?.username) {
     return (
@@ -29,7 +34,18 @@ const Profile = () => {
         You need to be logged in to view this page. Use the NAvigation links above to sign up or log in!
       </h4>
     )
-  }
+  };
+
+  const handleClick = async () => {
+    try {
+      await addFriend({
+        variables: { id: user._id }
+      })
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div>
       <div className="flex-row mb-3">
@@ -37,6 +53,11 @@ const Profile = () => {
           {/* Viewing <usernames>'s profile. */}
           Viewing {userParam ? `${user.username}'s` : 'your'} profile.
         </h2>
+        {userParam && (
+          <button className='btn ml-auto' onClick={handleClick}>
+            Add Friend
+          </button>
+        )}
       </div>
 
       <div className="flex-row justify-space-between mb-3">
@@ -53,6 +74,9 @@ const Profile = () => {
             friends={user.friends}
           />
         </div>
+      </div>
+      <div className='mb-3'>
+        {!userParam && <ThoughtForm />}
       </div>
     </div>
   );
