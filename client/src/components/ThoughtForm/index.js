@@ -1,8 +1,42 @@
 import React, { useState } from 'react';
+import { useMutation } from '@apollo/client';
+import { ADD_THOUGHT } from '../../utils/mutations';
+import { QUERY_THOUGHTS, QUERY_ME } from '../../utils/queries';
 
 const ThoughtForm = () => {
     const [thoughtText, setText] = useState('');
     const [characterCount, setCharacterCount] = useState(0);
+    const [addThought, {error}] = useMutation(ADD_THOUGHT, {
+        
+        update(cache, { data: { addThought }}) {
+
+            // COULD POTENTIALLY NOT EXIST YET, SO WRAP IN A TRY/CATCH
+            try {
+                // UPDATE ME ARRAY'S CACHE
+                const { me } = cache.readQuery({query: QUERY_ME});
+                cache.writeQuery({
+                    query: QUERY_ME,
+                    data: {me: { ...me, thoughts: [...me.thoughts, addthought]}},
+                });
+            } catch (e) {
+                console.warn("First thought insertion by user!")
+            }
+
+            // READ WHAT'S CURRENTLY IN THE CACHE
+            // UPDATE THOUGH ARRAY'S CACHE
+            const {thoughts} = cache.readQuery({query: QUERY_THOUGHTS});
+            cache.writeQuery({
+                query: QUERY_THOUGHTS,
+                data: { thoughts: [addThought, ...thoughts] },
+            });
+
+            // PREPEND THE NEWEST THOUGHT TO THE FRONT OF THE ARRAY
+            cache.writeQuery({
+                query: QUERY_THOUGHTS,
+                data: { thoughts: [addThought, ...thoughts] }
+            });
+        }
+    });
 
     const handleChange = event => {
         if(event.target.value.length <= 280) {
@@ -11,16 +45,26 @@ const ThoughtForm = () => {
         }
     };
 
-    const handleFormSubmit = event => {
+    const handleFormSubmit = async event => {
         event.preventDefault();
-        setText('')
-        setCharacterCount(0)
-    }
+
+        try {
+            // ADD THOUGHT TO DATABASE
+            await addThought({
+                variables: { thoughtText }
+            });
+            setText('')
+            setCharacterCount(0)
+        } catch (e) {
+            console.error(e)
+        }
+    };
 
     return (
         <div>
-            <p className='m-0'>
+            <p className={`m-0 ${characterCount === 280 || error ? 'text-error' : ''}`}>
                 Character Count: {characterCount}/280
+                {error && <span className='m1-2'>Something went wrong</span>}
             </p>
             <form 
                 className='flex-row justify-center justify-space-between-md align-stretch'
